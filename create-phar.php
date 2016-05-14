@@ -5,8 +5,8 @@ exec('rm -rf ' . __DIR__ . '/build');
 $srcRoot = "~/RingCentral-Call-Generator-Recordings-Downloader/";
 $buildRoot = "./build";
  
-$phar = new Phar($buildRoot . "/RC_CallRecordings_Download.phar", 
-    FilesystemIterator::CURRENT_AS_FILEINFO |  FilesystemIterator::KEY_AS_FILENAME, "RC_CallRecordings_Download.phar");
+$phar = new Phar($buildRoot . "/app.phar", 
+    FilesystemIterator::CURRENT_AS_FILEINFO |  FilesystemIterator::KEY_AS_FILENAME, "app.phar");
 
 function listDir($root, $path, $phar)
 {
@@ -20,7 +20,7 @@ function listDir($root, $path, $phar)
             stristr($filename, '.gitignore') ||
             stristr($filename, 'manual_tests') ||
             stristr($filename, 'tests') ||
-            // stristr($filename, 'demo') ||
+            stristr($filename, 'demo') ||
             stristr($filename, 'Call-Logs') ||
             stristr($filename, 'Json') ||
             stristr($filename, 'Csv') ||
@@ -43,4 +43,4 @@ function listDir($root, $path, $phar)
 
 listDir(__DIR__ . '/', '', $phar);
 
-$phar->setStub($phar->createDefaultStub("index.php"));
+$phar->setStub($phar->createDefaultStub("run.php"));
