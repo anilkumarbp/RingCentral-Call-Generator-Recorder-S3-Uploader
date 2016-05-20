@@ -1,216 +1,128 @@
-# RingCentral Call Generator Recordings Downloader - BETA
-A Sample PHP command line application to : Generate Call Records ( with / without Recordings ) , download call logs , upload recordings to Amazon S3 Bucket, Dropbox
+#RingCentral Call Generator Recordings Downloader - BETA
 
-**Please Keep in mind that this is not a Production ready Application but just a sample demo**
+A PHP command line application to transfer call recordings from RingCentral server to AWS S3.
 
-![APP screenshots](docs/Recordings.png) 
- 
+#Introduction
 
-# Requirements
+This application contains two entry points. One is run_calllog.php which gets call logs from RingCentral server and save call logs as temp files in `_cache` folder. Another one is run_s3.php which retrieves recordings based on call logs get in last script and then send recordings to S3. Each script should be run in a regular timespan respectively.  
 
-- PHP 5.3.29+
-- Composer
-- CURL Extension
+#Installation
 
-# Configuration Requirements
+Use 
 
-- What is the hourly interval/ range when they would like to pull down the recordings
-- What is the approximate call-recordgins count per day
-- The total number of accounts and the details
-
-# Installation
-
-
-## Clone the Repository **( Recommended )**
-
-```sh
-$ git clone https://github.com/anilkumarbp/RingCentral-Call-Generator-Recordings-Downloader.git
+```
+git clone 
 ```
 
-Cd into `RingCentral-Call-Generator-Recordings-Downloader`. Run the Composer command to install the packages
- 
-```sh
-$ composer install
+to clone the app. And then 
+```
+cd RingCentral-Call-Generator-Recordings-Downloader
+composer install
 ```
 
-Create a `.env` file within the same folder and the contents as **shown below** and configure your RingCentral Account details:
+to install required dependencies. And you are good to go.
 
-For ex: To run callRecording.php script make `RC_SkipDownload= False`
-		To skip callRecording.php script make `RC_SkipDownload= True` 
+#How to use
 
-```php
+Please follow below steps to run the application.
 
-RC_AppKey= 							
-RC_AppSecret= 
-RC_Server= 
-RC_Username= 
+##Configuration
+
+A .env file needs to be created at project root to provide required configurations. Following is an example.
+
+```
+Log_Level= 0
+RC_AppKey= appKey
+RC_AppSecret= appSecret
+RC_Server= https://platform.devtest.ringcentral.com
+RC_Username= 123456789
 RC_Extension= 
-RC_Password= 
-RC_fromPhoneNumber= 
-RC_toPhoneNumber= 
-RC_dateFrom= 
-RC_dateTo= 
-RC_callRecordingsCount= 
-amazonAccessKey= 
-amazonSecretKey= 
-dropBoxkey= 
-dropBoxsecret= 
-RC_SkipCallLog=           
-RC_SkipRingOut=         
-RC_SkipDownload=     
-RC_SkipDownloadS3= 
-RC_SkipDownloadDropbox=  
+RC_Password= password
+RC_maxRetrieveTimespan = 60
+RC_requestLimit = 30
+RC_requestPool = 1
+amazonAccessKey= awsKey
+amazonSecretKey= awsSecret
+amazonRegion= awsRegion
+amazonS3Bucket= S3bucketname
+```
+
+Here are detailed explanation
+
+###Log Level
+```
+Log_Level= 0
 
 ```
 
-Then execute:
+This application supports 3 log levels, including INFO(0), DEBUG(1) and ERROR(2). So developer/operator could specify what kind of messages goes into log file. Notice that the message types which are not less than the specified value will go into log.
 
-```sh
-$ php index.php
+###RingCentral App Credential
+```
+RC_AppKey= appKey
+RC_AppSecret= appSecret
+RC_Server= https://platform.devtest.ringcentral.com
 ```
 
+Specify the credentials of your RingCentral App.
 
-
-## Using the PHAR package 
-
-Download the PHAR file: [`Click Here for PHAR file`](https://github.com/anilkumarbp/RingCentral-Call-Generator-Recordings-Downloader/releases/download/0.1.2/RC_CallRecordings_Download.phar)
-
-```sh
-$ wget https://github.com/anilkumarbp/RingCentral-Call-Generator-Recordings-Downloader/releases/download/0.1.2/RC_CallRecordings_Download.phar
+###RingCentral Account Credential
 ```
-
-cd into the folder where the PHAR file is downloaded and create a .env file as shown above: (alternatively you could create a .env using the vi editor)
-
-```php
-$ vim .env
-```
-copy the contents from `.env.example` into `.env` file as below and enter the RC account details:
-```php
-
-RC_AppKey= 							
-RC_AppSecret= 
-RC_Server= 
-RC_Username= 
+RC_Username= 123456789
 RC_Extension= 
-RC_Password= 
-RC_fromPhoneNumber= 
-RC_toPhoneNumber= 
-RC_dateFrom= 
-RC_dateTo= 
-RC_callRecordingsCount= 
-amazonAccessKey= 
-amazonSecretKey= 
-dropBoxkey= 
-dropBoxsecret= 
-RC_SkipCallLog=           
-RC_SkipRingOut=         
-RC_SkipDownload=     
-RC_SkipDownloadS3= 
-RC_SkipDownloadDropbox=  
-
+RC_Password= password
 ```
 
-Execute the PHAR file
+Specify the credentials of the RingCentral account which will be used to login and fetch call recordings. Notice that only account-level extension is allowed to fetch call recordings of all extensions in that account. Otherwise exception will be thrown.
 
-```php
-$ php RC_CallRecordings_Download.phar
+###Max Retrieve Timespan
+```
+RC_maxRetrieveTimespan = 60
 ```
 
+Specify the timespan(in seconds) used to fetch call logs at first run of `run_calllog.php`. So if it is set as 60, it means that application will try to fetch all the call logs recorded in past 60 seconds. Notice that this variable is only used at first run. After that, application will record last timestamp the call logs are fetched and use this timestamp as the starting point for next fetch.  
 
-# Basic Usage
+###Request Configurations
+```
+RC_requestLimit = 30
+RC_requestPool = 1
+```
+`RC_requestLimit` is the total number of requests the app uses to fetch recordings in 1 min. `RC_requestPool` is the number of processes the app used to fetch and send recordings. So the app uses the value of `RC_requestLimit/RC_requestPool` to determine how many recordings each process will try to fetch and send in 1 min. This implictly adds following constraints on these two variables. 
+- `RC_requestLimit` should be set to `MaxAppRequestLimit - (5 to 10)` since buffer needs to be saved for other types of request, like authorization and fetching call logs. 
+- The value of `RC_requestLimit/RC_requestPool` should be an integer. Considering there could be recordings which are in big file size, so keep this value less than 20 is recommended. 
 
-## Generate Call Recordings
-
-```php
-require(__DIR__ . '/demo/ringout.php');
+###Amazon Account Credentials
+```
+amazonAccessKey= awsKey
+amazonSecretKey= awsSecret
+amazonRegion= awsRegion
+amazonS3Bucket= S3bucketname
 ```
 
-Aim : To generate sample call recordings you would need to use the ringout.php file. 
-Pre-requisite : Before you initiate a RingOut, make sure to add a "Announcement-Only-Extension" and associate a digital line / direct line attached to it.
-Make sure to use this number as both the "fromPhoneNumber" and "toPhoneNumber" within the .env file ( /.env )
-                
-## Pull Down Call-Logs
+Specify the AWS account credentials. 
 
-```php
-require(__DIR__ . '/demo/call_log.php');
+##Run App with Cron Job
+
+It takes the advantage of cron job to run the application regularly. Two types of cron jobs are required.
+
+###Fetch Call Logs
+
+One type of the cron job is to run `run_calllog.php` to fetch call logs. Recommended execution timespan is 3 to 5 mins.
+
 ```
-Aim : To pull down call-logs in cycles of one business day ( 24 hours ) and save them as .json file
-Pre-requisite : Before you initiate the call_log.php make sure to pass the "RC_dateFrom" filter in the .env file ( /.env )
-Note : The call-log is designed to fetch 100 records per page.
-
-## Save the call-recordings to Local File System
-
-```php
-require(__DIR__ . '/demo/callRecording.php');
-```
-Aim : Save the call-recordings to your local file system using file stream writer. Creates a directory called "Recordings" and the recordings are stored as .mp3 / .wav format.
-Pre-requisite : Before you initiate the callRecording.php make sure to pass the "RC_dateFrom" filter in the .env file ( /.env )
-
-## Save the call-recordings to Amazon S3 Bucket
-
-```php
-require(__DIR__ . '/demo/callRecording_S3.php');
-```
-Aim : Save the call-recordings to your Amazon S3 Buckets using amazon stream writer. Creates a directory called "Recordings" and the recordings are stored as .mp3 / .wav format.
-Pre-requisite : Before you initiate the callRecording.php make sure to pass the "RC_dateFrom" filter in the .env file ( /.env )
-```php
-{
-	"amazonAccessKey": "", 			// Amazon app key       
-	"amazonSecretKey": ""			// Amazon app secret
-}
+*/3 * * * * cd /home/ec2-user/RingCentral-Call-Generator-Recordings-Downloader && php run_calllog.php
 ```
 
-## Save the call-recordings to DropBox
+###Send Recordings
 
-```php
-require(__DIR__ . '/demo/callRecording_Dropbox.php');
+Another type of cron job is to run `run_s3.php` to fetch and send recordings to s3. As many as the value of `RC_requestPool` cron jobs need to be setup as follows
+
 ```
-Aim : Save the call-recordings to your Dropbox Application. Creates a directory called "Recordings" and the recordings are stored as .mp3 / .wav format.
-Pre-requisite : Before you initiate the callRecording_Dropbox.php make sure to pass the "dropBoxkey" and "dropBoxsecret" within the .env file ( /.env )
-
-```php
-{
-	"dropBoxkey": "", 			// Dropbox app key       
-	"dropBoxsecret": ""			// Dropbox app secret
-}
+*/1 * * * * cd /home/ec2-user/RingCentral-Call-Generator-Recordings-Downloader && php run_s3.php
 ```
 
+which means that if the value of `RC_requestPool` is 2, you need to setup 2 cron jobs by using this script. And notice that the execution tiemspan should be set to 1 min.
 
-Please take a look in `demo` folder to see all the demo scripts.
+#Monitoring
 
-
-## Links
-
-Project Repo
-
-* https://github.com/anilkumarbp/RingCentral-Call-Generator-Recordings-Downloader
-
-RingCentral SDK for PHP
-
-* https://github.com/ringcentral/ringcentral-php
-
-RingCentral API Docs
-
-* https://developers.ringcentral.com/library.html
-
-RingCentral API Explorer
-
-* http://ringcentral.github.io/api-explorer
-
-## Contributions
-
-Any reports of problems, comments or suggestions are most welcome.
-
-Please report these on [RingCentral-Call-Generator-Recordings-Downloader's Issue Tracker in Github](https://github.com/anilkumarbp/RingCentral-Call-Generator-Recordings-Downloader/issues).
-
-## License
-
-RingCentral SDK is available under an MIT-style license. See [LICENSE.txt](LICENSE.txt) for details.
-
-RingCentral SDK &copy; 2016 by RingCentral
-
-## FAQ
-
-* What if I do not have a RingCentral account? Don't have an account, no worries: [Become a RingCentral Customer](https://www.ringcentral.com/office/plansandpricing.html)
-* I/My company is an Independent Software Vendor (ISV) who would like to integrate with RingCentral, how do I do that? You can apply to [Join the RingCentral Partner Program](http://www.ringcentral.com/partner/isvreseller.html)
-
+The appliation will log all messages in `_cache/log` file. 
